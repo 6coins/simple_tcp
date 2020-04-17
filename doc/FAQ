@@ -1,0 +1,55 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    问题:执行如下命令后报错
+        > ssl:start().
+        > {ok, ListenSocket} = ssl:listen(9999, [{certfile, "server.crt"}, {keyfile, "server_private_key.pem"},{reuseaddr, true}]).
+        ...
+        > {ok, Socket} = ssl:transport_accept(ListenSocket).
+        ...
+        > ok = ssl:ssl_accept(Socket).
+        ** exception exit: {{function_clause,[{ssl_certificate,signature_type,
+                                                               [{1,2,840,113549,1,1,11}],
+                                                               [{file,"ssl_certificate.erl"},{line,174}]},
+                                              {ssl_cipher,filter,2,[{file,"ssl_cipher.erl"},{line,401}]},
+                                              {ssl_handshake,select_session,8,
+                                                             [{file,"ssl_handshake.erl"},{line,578}]},
+                                              {ssl_handshake,hello,4,
+                                                             [{file,"ssl_handshake.erl"},{line,152}]},
+                                              {ssl_connection,hello,2,
+                                                              [{file,"ssl_connection.erl"},{line,402}]},
+                                              {ssl_connection,next_state,4,
+                                                              [{file,"ssl_connection.erl"},{line,1892}]},
+                                              {gen_fsm,handle_msg,7,[{file,"gen_fsm.erl"},{line,473}]},
+                                              {proc_lib,init_p_do_apply,3,
+                                                        [{file,"proc_lib.erl"},{line,227}]}]},
+                            {gen_fsm,sync_send_all_state_event,
+                                     [<0.48.0>,start,infinity]}}
+             in function  gen_fsm:sync_send_all_state_event/3 (gen_fsm.erl, line 234)
+             in call from ssl_connection:sync_send_all_state_event/3 (ssl_connection.erl, line 1158)
+             in call from ssl_connection:handshake/2 (ssl_connection.erl, line 166)
+
+    版本:Erlang R15B (erts-5.9)
+    时间:20190930
+    原因:
+        server.crt的证书的签名算法erlang暂时不支持,详见下文:
+            查看证书的签名算法
+                $ openssl x509 -in server.crt -noout -text|grep 'Signature Algorithm'
+                    Signature Algorithm: sha256WithRSAEncryption
+            查看erlang支持的证书的签名算法
+                进入erlang手册; 
+                进入"public_key"模块;
+                    点击"COMMON DATA TYPES"中"Certificate records"的连接进入其页面;
+                        搜索"Signature algorithm oids",可以看到一个表格,其中是支持的算法:
+                            id-dsa-with-sha1
+                            md2WithRSAEncryption
+                            md5WithRSAEncryption
+                            sha1WithRSAEncryption
+                            ecdsa-with-SHA1
+            我们看到erlang支持的证书的签名算法不包括sha256WithRSAEncryption,所以需要修改证书的签名算法重新生成新的证书
+        
+    解决:
+        如把生成证书的命令由:
+            openssl x509 -req -sha256 -days 3650 -in server.csr -CA ca.crt -CAkey ca_private_key.pem -CAcreateserial -out server.crt
+        改成:
+            openssl x509 -req -sha1 -days 3650 -in server.csr -CA ca.crt -CAkey ca_private_key.pem -CAcreateserial -out server.crt
+

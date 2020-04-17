@@ -1,0 +1,18 @@
+{
+    application,
+    tcp_server,
+    [
+        {description, "tcp Server"},
+        {vsn, "0"},
+        {modules, [
+            tcp_server_app,
+            tcp_server_sup,
+            tcp_server_child
+        ]},
+        {registered, [
+            tcp_server_sup
+        ]},
+        {applications, [kernel, stdlib]},
+        {mod, {tcp_server_app, []}}
+    ]
+}.
